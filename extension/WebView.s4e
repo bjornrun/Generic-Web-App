@@ -1,0 +1,30 @@
+callbacks
+
+include:
+#include <s3eTypes.h>
+
+struct WebViewSession;
+
+typedef void (*WebViewCallbackFn)(WebViewSession *, s3eResult *, void *);
+
+enum WebViewCallback
+{
+    WEBVIEW_CALLBACK_PAGE_LOADED,
+    WEBVIEW_CALLBACK_PAGE_ERROR,
+	WEBVIEW_CALLBACK_LINK,
+    S3E_WEBVIEW_CALLBACK_MAX
+};
+
+functions:
+
+WebViewSession* InitWebView() NULL runonmainthread
+
+s3eResult CreateWebView(WebViewSession* session, const char* file) S3E_RESULT_ERROR runonmainthread
+
+s3eResult LinkWebView(WebViewSession* session, const char* url) S3E_RESULT_ERROR runonmainthread
+
+s3eResult RemoveWebView(WebViewSession* session) S3E_RESULT_ERROR runonmainthread
+
+
+
+
