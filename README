@@ -1,0 +1,9 @@
+One of the most important functions missing in AirplaySDK is the WebView.
+
+Here is my implementation of UIWebView for iPhone.
+
+The Android version will be made next.
+
+
+Extensions and additions are welcome!
+
