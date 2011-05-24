@@ -9,8 +9,12 @@
 
 #include "WebView_internal.h"
 #import "WebViewObj.h"
+#include "s3eEdk.h"
+#include "s3eEdk_iphone.h"
+
 
 WebViewObj* webview;
+NSMutableDictionary* params;
 
 s3eResult WebViewInit_platform()
 {
@@ -27,6 +31,7 @@ void WebViewTerminate_platform()
 WebViewSession* InitWebView_platform()
 {
 	webview = [[WebViewObj alloc] init];
+	params = [[NSMutableDictionary alloc] init];
 	
     return (WebViewSession*) webview;
 }
@@ -35,7 +40,6 @@ s3eResult CreateWebView_platform(WebViewSession* session, const char* file)
 {
 	if (session != NULL) {
 		WebViewObj* _webview = (WebViewObj*) session;
-		[_webview dismiss];
 		
 		NSArray* paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, 
 															 NSUserDomainMask, YES); 
@@ -44,6 +48,19 @@ s3eResult CreateWebView_platform(WebViewSession* session, const char* file)
 		NSString* filenameStr = [documentsDirectory
 								 stringByAppendingPathComponent:leafname];
 		
+		BOOL fileExists = [[NSFileManager defaultManager] fileExistsAtPath:filenameStr];
+		
+		if (!fileExists) {
+			
+			NSString* bundlePath = [[NSBundle mainBundle] resourcePath];
+			filenameStr = [bundlePath
+						   stringByAppendingPathComponent:leafname];
+		}
+		
+		fileExists = [[NSFileManager defaultManager] fileExistsAtPath:filenameStr];
+		
+		if (!fileExists) 
+			return S3E_RESULT_ERROR;
 				
 		[_webview loadFile:filenameStr]; 
 		return S3E_RESULT_SUCCESS;
@@ -52,10 +69,23 @@ s3eResult CreateWebView_platform(WebViewSession* session, const char* file)
     return S3E_RESULT_ERROR;
 }
 
-s3eResult LinkWebView_platform(WebViewSession* session, const char* url)
+s3eResult ParamWebView_platform(WebViewSession* session, const char* name, const char* value)
 {
+	if (session != NULL) {
+		[params setObject:[[[NSString alloc] initWithUTF8String:value] autorelease] forKey:[[[NSString alloc] initWithUTF8String:name] autorelease]];
+		return S3E_RESULT_SUCCESS;
+	}
+	return S3E_RESULT_ERROR;
+}
 
-	return S3E_RESULT_SUCCESS;
+s3eResult ConnectWebView_platform(WebViewSession* session, const char* url)
+{
+	if (session != NULL) {
+		WebViewObj* _webview = (WebViewObj*) session;
+		[_webview loadURL:[[[NSString alloc] initWithUTF8String:url] autorelease] get:params];
+		return S3E_RESULT_SUCCESS;
+	}		
+	return S3E_RESULT_ERROR;
 }
 
 s3eResult RemoveWebView_platform(WebViewSession* session)
@@ -67,6 +97,28 @@ s3eResult RemoveWebView_platform(WebViewSession* session)
 		return S3E_RESULT_SUCCESS;
 	}
 	return S3E_RESULT_ERROR;
-
 }
 
+s3eResult TurnWebView_platform(WebViewSession* session, int direction)
+{
+	if (session != NULL) {
+		WebViewObj* _webview = (WebViewObj*) session;
+		[_webview chkRotation:direction];
+	}
+	return S3E_RESULT_ERROR;		
+}
+
+const char* EvalJSWebView_platform(WebViewSession* session, const char* js)
+{
+	NSString* result = nil;
+	if (session != NULL) {
+		WebViewObj* _webview = (WebViewObj*) session;
+		result = [_webview evalJS:[[[NSString alloc] initWithUTF8String:js] autorelease]];
+	}		
+	if (result) {
+		return [result UTF8String];
+	} else {
+		return NULL;		
+	}
+
+}

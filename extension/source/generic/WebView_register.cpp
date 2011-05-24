@@ -33,10 +33,16 @@ static s3eResult CreateWebView_wrap(WebViewSession* session, const char* file)
     return (s3eResult)(intptr_t)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)CreateWebView, 2, session, file);
 }
 
-static s3eResult LinkWebView_wrap(WebViewSession* session, const char* url)
+static s3eResult ParamWebView_wrap(WebViewSession* session, const char* name, const char* value)
 {
-    IwTrace(WEBVIEW_VERBOSE, ("calling WebView func on main thread: LinkWebView"));
-    return (s3eResult)(intptr_t)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)LinkWebView, 2, session, url);
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView func on main thread: ParamWebView"));
+    return (s3eResult)(intptr_t)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)ParamWebView, 3, session, name, value);
+}
+
+static s3eResult ConnectWebView_wrap(WebViewSession* session, const char* url)
+{
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView func on main thread: ConnectWebView"));
+    return (s3eResult)(intptr_t)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)ConnectWebView, 2, session, url);
 }
 
 static s3eResult RemoveWebView_wrap(WebViewSession* session)
@@ -45,10 +51,25 @@ static s3eResult RemoveWebView_wrap(WebViewSession* session)
     return (s3eResult)(intptr_t)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)RemoveWebView, 1, session);
 }
 
+static s3eResult TurnWebView_wrap(WebViewSession* session, int direction)
+{
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView func on main thread: TurnWebView"));
+    return (s3eResult)(intptr_t)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)TurnWebView, 2, session, direction);
+}
+
+static const char* EvalJSWebView_wrap(WebViewSession* session, const char* js)
+{
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView func on main thread: EvalJSWebView"));
+    return (const char*)s3eEdkThreadRunOnOS((s3eEdkThreadFunc)EvalJSWebView, 2, session, js);
+}
+
 #define InitWebView InitWebView_wrap
 #define CreateWebView CreateWebView_wrap
-#define LinkWebView LinkWebView_wrap
+#define ParamWebView ParamWebView_wrap
+#define ConnectWebView ConnectWebView_wrap
 #define RemoveWebView RemoveWebView_wrap
+#define TurnWebView TurnWebView_wrap
+#define EvalJSWebView EvalJSWebView_wrap
 
 #endif /* I3D_OS_IPHONE */
 
@@ -65,18 +86,21 @@ s3eResult WebViewUnRegister(WebViewCallback cbid, s3eCallback fn)
 void WebViewRegisterExt()
 {
     /* fill in the function pointer struct for this extension */
-    void* funcPtrs[6];
+    void* funcPtrs[9];
     funcPtrs[0] = (void*)WebViewRegister;
     funcPtrs[1] = (void*)WebViewUnRegister;
     funcPtrs[2] = (void*)InitWebView;
     funcPtrs[3] = (void*)CreateWebView;
-    funcPtrs[4] = (void*)LinkWebView;
-    funcPtrs[5] = (void*)RemoveWebView;
+    funcPtrs[4] = (void*)ParamWebView;
+    funcPtrs[5] = (void*)ConnectWebView;
+    funcPtrs[6] = (void*)RemoveWebView;
+    funcPtrs[7] = (void*)TurnWebView;
+    funcPtrs[8] = (void*)EvalJSWebView;
 
     /*
      * Flags that specify the extension's use of locking and stackswitching
      */
-    int flags[6] = { 0 };
+    int flags[9] = { 0 };
 
     /*
      * Register the extension

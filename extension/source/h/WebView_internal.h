@@ -46,9 +46,15 @@ WebViewSession* InitWebView_platform();
 
 s3eResult CreateWebView_platform(WebViewSession* session, const char* html);
 
-s3eResult LinkWebView_platform(WebViewSession* session, const char* url);
+s3eResult ParamWebView_platform(WebViewSession* session, const char* name, const char* value);
+
+s3eResult ConnectWebView_platform(WebViewSession* session, const char* url);
 
 s3eResult RemoveWebView_platform(WebViewSession* session);
+
+s3eResult TurnWebView_platform(WebViewSession* session, int direction);
+
+const char* EvalJSWebView_platform(WebViewSession* session, const char* js);
 
 
 #endif /* WEBVIEW_H_INTERNAL */

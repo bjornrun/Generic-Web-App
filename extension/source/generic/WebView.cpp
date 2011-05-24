@@ -33,12 +33,27 @@ s3eResult CreateWebView(WebViewSession* session, const char* html)
 	return CreateWebView_platform(session, html);
 }
 
-s3eResult LinkWebView(WebViewSession* session, const char* url)
+s3eResult ParamWebView(WebViewSession* session,const char* name, const char* value)
 {
-	return LinkWebView_platform(session, url);
+	return ParamWebView_platform(session, name, value);
+}
+
+s3eResult ConnectWebView(WebViewSession* session, const char* url)
+{
+	return ConnectWebView_platform(session, url);
 }
 
 s3eResult RemoveWebView(WebViewSession* session)
 {
 	return RemoveWebView_platform(session);
+}
+
+s3eResult TurnWebView(WebViewSession* session, int direction)
+{
+	return TurnWebView_platform(session, direction);
+}
+
+const char* EvalJSWebView(WebViewSession* session, const char* js)
+{
+	return EvalJSWebView_platform(session, js);
 }

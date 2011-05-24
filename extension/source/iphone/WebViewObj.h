@@ -17,7 +17,7 @@
 
 	UIWebView* _webView;
 	UIActivityIndicatorView* _spinner;
-	UIDeviceOrientation _orientation;
+	UIDeviceOrientation _orientation, newDirection;
 	BOOL _showingKeyboard;
 
 //	WebViewCallbackFn cb;
@@ -35,6 +35,9 @@
 
 - (void)loadURL:(NSString*)url get:(NSDictionary*)getParams;
 - (void) loadFile:(NSString*) filename;
+-(NSString*) evalJS:(NSString*) js ;
 - (void)dismiss;
+-(void) chkRotation: (int) direction;
+
 
 @end

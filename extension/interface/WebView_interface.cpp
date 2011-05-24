@@ -15,8 +15,11 @@ typedef  s3eResult(*WebViewRegister_t)(WebViewCallback cbid, s3eCallback fn, voi
 typedef  s3eResult(*WebViewUnRegister_t)(WebViewCallback cbid, s3eCallback fn);
 typedef WebViewSession*(*InitWebView_t)();
 typedef  s3eResult(*CreateWebView_t)(WebViewSession* session, const char* file);
-typedef  s3eResult(*LinkWebView_t)(WebViewSession* session, const char* url);
+typedef  s3eResult(*ParamWebView_t)(WebViewSession* session, const char* name, const char* value);
+typedef  s3eResult(*ConnectWebView_t)(WebViewSession* session, const char* url);
 typedef  s3eResult(*RemoveWebView_t)(WebViewSession* session);
+typedef  s3eResult(*TurnWebView_t)(WebViewSession* session, int direction);
+typedef const char*(*EvalJSWebView_t)(WebViewSession* session, const char* js);
 
 
 /**
@@ -28,8 +31,11 @@ typedef struct WebViewFuncs
     WebViewUnRegister_t m_WebViewUnRegister;
     InitWebView_t m_InitWebView;
     CreateWebView_t m_CreateWebView;
-    LinkWebView_t m_LinkWebView;
+    ParamWebView_t m_ParamWebView;
+    ConnectWebView_t m_ConnectWebView;
     RemoveWebView_t m_RemoveWebView;
+    TurnWebView_t m_TurnWebView;
+    EvalJSWebView_t m_EvalJSWebView;
 } WebViewFuncs;
 
 static WebViewFuncs ext;
@@ -119,22 +125,52 @@ s3eResult CreateWebView(WebViewSession* session, const char* file)
     return ext.m_CreateWebView(session, file);
 }
 
-s3eResult LinkWebView(WebViewSession* session, const char* url)
+s3eResult ParamWebView(WebViewSession* session, const char* name, const char* value)
 {
-    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[4] func: LinkWebView"));
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[4] func: ParamWebView"));
 
     if (!_extLoad())
         return S3E_RESULT_ERROR;
 
-    return ext.m_LinkWebView(session, url);
+    return ext.m_ParamWebView(session, name, value);
+}
+
+s3eResult ConnectWebView(WebViewSession* session, const char* url)
+{
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[5] func: ConnectWebView"));
+
+    if (!_extLoad())
+        return S3E_RESULT_ERROR;
+
+    return ext.m_ConnectWebView(session, url);
 }
 
 s3eResult RemoveWebView(WebViewSession* session)
 {
-    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[5] func: RemoveWebView"));
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[6] func: RemoveWebView"));
 
     if (!_extLoad())
         return S3E_RESULT_ERROR;
 
     return ext.m_RemoveWebView(session);
+}
+
+s3eResult TurnWebView(WebViewSession* session, int direction)
+{
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[7] func: TurnWebView"));
+
+    if (!_extLoad())
+        return S3E_RESULT_ERROR;
+
+    return ext.m_TurnWebView(session, direction);
+}
+
+const char* EvalJSWebView(WebViewSession* session, const char* js)
+{
+    IwTrace(WEBVIEW_VERBOSE, ("calling WebView[8] func: EvalJSWebView"));
+
+    if (!_extLoad())
+        return NULL;
+
+    return ext.m_EvalJSWebView(session, js);
 }

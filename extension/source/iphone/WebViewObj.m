@@ -16,6 +16,7 @@ enum WebViewCallback
     WEBVIEW_CALLBACK_PAGE_LOADED,
     WEBVIEW_CALLBACK_PAGE_ERROR,
 	WEBVIEW_CALLBACK_LINK,
+	WEBVIEW_CALLBACK_KEYBOARD,
     S3E_WEBVIEW_CALLBACK_MAX
 };
 
@@ -51,7 +52,9 @@ BOOL IsDeviceIPad() {
 }
 
 - (CGAffineTransform)transformForOrientation {
-	UIInterfaceOrientation orientation = [UIApplication sharedApplication].statusBarOrientation;
+	UIInterfaceOrientation orientation = newDirection;
+	if (orientation == UIDeviceOrientationUnknown)
+		orientation = [UIApplication sharedApplication].statusBarOrientation;
 	if (orientation == UIInterfaceOrientationLandscapeLeft) {
 		return CGAffineTransformMakeRotation(M_PI*1.5);
 	} else if (orientation == UIInterfaceOrientationLandscapeRight) {
@@ -78,7 +81,9 @@ BOOL IsDeviceIPad() {
 	CGFloat width = floor(scale_factor * frame.size.width);
 	CGFloat height = floor(scale_factor * frame.size.height);
 	
-	_orientation = [UIApplication sharedApplication].statusBarOrientation;
+	_orientation = newDirection;
+	if (_orientation == UIDeviceOrientationUnknown)
+		_orientation = [UIApplication sharedApplication].statusBarOrientation;
 	if (UIInterfaceOrientationIsLandscape(_orientation)) {
 		self.frame = CGRectMake(0, 0, height, width);
 	} else {
@@ -92,14 +97,18 @@ BOOL IsDeviceIPad() {
 }
 
 - (void)updateWebOrientation {
-	UIInterfaceOrientation orientation = [UIApplication sharedApplication].statusBarOrientation;
-	if (UIInterfaceOrientationIsLandscape(orientation)) {
+	UIInterfaceOrientation orientation = newDirection;
+	if (orientation == UIDeviceOrientationUnknown)
+		orientation = [UIApplication sharedApplication].statusBarOrientation;
+	[[UIApplication sharedApplication] setStatusBarOrientation:orientation animated:NO];
+/*	if (UIInterfaceOrientationIsLandscape(orientation)) {
 		[_webView stringByEvaluatingJavaScriptFromString:
 		 @"document.body.setAttribute('orientation', 90);"];
 	} else {
 		[_webView stringByEvaluatingJavaScriptFromString:
 		 @"document.body.removeAttribute('orientation');"];
-	}
+	}*/
+	
 }
 
 - (void)bounce1AnimationStopped {
@@ -116,6 +125,11 @@ BOOL IsDeviceIPad() {
 	[UIView setAnimationDuration:kTransitionDuration/2];
 	self.transform = [self transformForOrientation];
 	[UIView commitAnimations];
+}
+
+- (void) orientationAnimationStopped {
+	[_webView stringByEvaluatingJavaScriptFromString:@"var e = document.createEvent('Events'); e.initEvent('orientationchange', true, false); document.dispatchEvent(e); "];   
+	
 }
 
 - (NSURL*)generateURL:(NSString*)baseURL params:(NSDictionary*)params {
@@ -136,6 +150,14 @@ BOOL IsDeviceIPad() {
 		
 		NSString* query = [pairs componentsJoinedByString:@"&"];
 		NSString* url = [NSString stringWithFormat:@"%@?%@", baseURL, query];
+		{
+			static char saved_url[4048];
+			strncpy(saved_url, [url  UTF8String], 4048);
+			saved_url[4047] = 0;
+			
+			s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_LINK, saved_url, strlen(saved_url) + 1, NULL,S3E_FALSE,NULL,NULL);	
+		}		
+		
 		return [NSURL URLWithString:url];
 	} else {
 		return [NSURL URLWithString:baseURL];
@@ -172,6 +194,7 @@ BOOL IsDeviceIPad() {
 	if (self = [super initWithFrame:CGRectZero]) {
 		_loadingURL = nil;
 		_orientation = UIDeviceOrientationUnknown;
+		newDirection = UIDeviceOrientationUnknown;
 		_showingKeyboard = NO;
 
 		self.backgroundColor = [UIColor clearColor];
@@ -207,13 +230,21 @@ BOOL IsDeviceIPad() {
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request
  navigationType:(UIWebViewNavigationType)navigationType {
 	NSURL* url = request.URL;
-
+	
+	
+	if ([[url scheme] isEqualToString:@"webapp"]) {
+		static char saved_url[4048];
+		[request.HTTPBody getBytes: saved_url length:4000];
+		saved_url[[request.HTTPBody length]] = 0;
+		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_LINK, saved_url, strlen(saved_url) + 1, NULL,S3E_FALSE,NULL,NULL);	
+		return NO;
+	}
 	if ([_loadingURL isEqual:url]) {
 		return YES;
-	} else if (navigationType == UIWebViewNavigationTypeLinkClicked) {
-		static char saved_url[2048];
-		strncpy(saved_url, [[url absoluteString] UTF8String], 2048);
-		saved_url[2047] = 0;
+	} else if (navigationType == UIWebViewNavigationTypeLinkClicked || navigationType == UIWebViewNavigationTypeFormSubmitted) {
+		static char saved_url[4048];
+		strncpy(saved_url, [[url absoluteString] UTF8String], 4048);
+		saved_url[4047] = 0;
 		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_LINK, saved_url, strlen(saved_url) + 1, NULL,S3E_FALSE,NULL,NULL);	
 		[_spinner sizeToFit];
 		[_spinner startAnimating];
@@ -232,7 +263,13 @@ BOOL IsDeviceIPad() {
 	
 	[self updateWebOrientation];
 	
-	s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_PAGE_LOADED, NULL, 0, NULL,S3E_FALSE,NULL,NULL);
+	int status = [[[webView request] valueForHTTPHeaderField:@"Status"] intValue];
+    if (status == 404) {
+		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_PAGE_ERROR, NULL, 0, NULL,S3E_FALSE,NULL,NULL);		
+    } else {
+		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_PAGE_LOADED, NULL, 0, NULL,S3E_FALSE,NULL,NULL);
+	}
+
 	
 }
 
@@ -248,14 +285,19 @@ BOOL IsDeviceIPad() {
 // UIDeviceOrientationDidChangeNotification
 
 - (void)deviceOrientationDidChange:(void*)object {
+		
+	
+	
 	UIDeviceOrientation orientation = [UIApplication sharedApplication].statusBarOrientation;
-	if (!_showingKeyboard && [self shouldRotateToOrientation:orientation]) {
+	/*if (!_showingKeyboard && [self shouldRotateToOrientation:orientation])*/ {
 		[self updateWebOrientation];
 		
 		CGFloat duration = [UIApplication sharedApplication].statusBarOrientationAnimationDuration;
 		[UIView beginAnimations:nil context:nil];
 		[UIView setAnimationDuration:duration];
 		[self sizeToFitOrientation:YES];
+		[UIView setAnimationDelegate:self];
+		[UIView setAnimationDidStopSelector:@selector(orientationAnimationStopped)];
 		[UIView commitAnimations];
 	}
 }
@@ -266,6 +308,9 @@ BOOL IsDeviceIPad() {
 - (void)keyboardWillShow:(NSNotification*)notification {
 	
 	_showingKeyboard = YES;
+	
+	s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_KEYBOARD, NULL, 0, NULL,S3E_FALSE,NULL,NULL);
+
 	
 	if (IsDeviceIPad()) {
 		// On the iPad the screen is large enough that we don't need to
@@ -314,11 +359,28 @@ BOOL IsDeviceIPad() {
 - (void)loadURL:(NSString*)url get:(NSDictionary*)getParams {
 	
 	[_loadingURL release];
+	
+	if (![[url substringToIndex:7] isEqual:@"http://"]) {
+		url = [NSString stringWithFormat:@"http://%@", url];
+	}
 	_loadingURL = [[self generateURL:url params:getParams] retain];
 	NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:_loadingURL];
 	
+	{
+		static char saved_url[]="Before loadRequest";
+		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_LINK, saved_url, strlen(saved_url) + 1, NULL,S3E_FALSE,NULL,NULL);	
+	}		
 	[_webView loadRequest:request];
-	[self show];
+	
+	[_spinner sizeToFit];
+	[_spinner startAnimating];
+	_spinner.center = _webView.center;
+	
+//	[self show];
+	{
+		static char saved_url[]="after loadRequest";
+		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_LINK, saved_url, strlen(saved_url) + 1, NULL,S3E_FALSE,NULL,NULL);	
+	}		
 }
 
 - (void) loadFile:(NSString*) filename  {
@@ -333,8 +395,22 @@ BOOL IsDeviceIPad() {
 
 	}
 	*/
+	
 	[_webView loadRequest:request];
 	[self show];
+}
+
+-(NSString*) evalJS:(NSString*) js {
+	
+	{
+		static char saved_url[4048];
+		strncpy(saved_url, [js UTF8String], 4048);
+		saved_url[4047] = 0;
+		
+		s3eEdkCallbacksEnqueue(S3E_EXT_WEBVIEW_HASH, WEBVIEW_CALLBACK_LINK, saved_url, strlen(saved_url) + 1, NULL,S3E_FALSE,NULL,NULL);	
+	}		
+	
+	return [_webView stringByEvaluatingJavaScriptFromString:js];	
 }
 
 - (void)show {
@@ -366,12 +442,13 @@ BOOL IsDeviceIPad() {
 	[UIView setAnimationDidStopSelector:@selector(bounce1AnimationStopped)];
 	self.transform = CGAffineTransformScale([self transformForOrientation], 1.1, 1.1);
 	[UIView commitAnimations];
+	self.alpha = 1.0;
 	
 	[self addObservers];
 }
 
 - (void)dismiss {
-	
+
 	[_loadingURL release];
 	_loadingURL = nil;
 	
@@ -381,6 +458,15 @@ BOOL IsDeviceIPad() {
 		[UIView setAnimationDidStopSelector:@selector(postDismissCleanup)];
 		self.alpha = 0;
 		[UIView commitAnimations];
+}
+
+
+
+-(void) chkRotation: (int) direction {
+	newDirection = direction;	
+	
+	
+	[self deviceOrientationDidChange: nil];
 }
 
 

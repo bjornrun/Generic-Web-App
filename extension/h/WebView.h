@@ -27,6 +27,7 @@ enum WebViewCallback
     WEBVIEW_CALLBACK_PAGE_LOADED,
     WEBVIEW_CALLBACK_PAGE_ERROR,
 	WEBVIEW_CALLBACK_LINK,
+	WEBVIEW_CALLBACK_KEYBOARD,
     S3E_WEBVIEW_CALLBACK_MAX
 };
 
@@ -73,9 +74,15 @@ WebViewSession* InitWebView();
 
 s3eResult CreateWebView(WebViewSession* session, const char* file);
 
-s3eResult LinkWebView(WebViewSession* session, const char* url);
+s3eResult ParamWebView(WebViewSession* session, const char* name, const char* value);
+
+s3eResult ConnectWebView(WebViewSession* session, const char* url);
 
 s3eResult RemoveWebView(WebViewSession* session);
+
+s3eResult TurnWebView(WebViewSession* session, int direction);
+
+const char* EvalJSWebView(WebViewSession* session, const char* js);
 
 S3E_END_C_DECL
 
